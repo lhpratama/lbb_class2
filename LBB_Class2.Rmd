@@ -370,9 +370,6 @@ The  test model however, only  achieved sensitivity of **61.2%**. It correctly p
 
 **Random Forest** is a powerful ensemble learning algorithm closely related to Decision Trees. While Decision Trees are individual models that make predictions based on a tree-like structure of binary decisions, Random Forest extends this concept by creating a collection of Decision Trees. Each tree in the Random Forest is built from a random subset of the data and a random subset of the features. This randomness in data selection and feature choice makes the trees diverse. Then, when making predictions, Random Forest aggregates the outputs of these individual trees, such as majority voting for classification or averaging for regression, resulting in a more robust and accurate prediction compared to a single Decision Tree. This ensemble approach helps Random Forest overcome the tendency of Decision Trees to overfit to the training data and makes it a popular choice for machine learning tasks where high predictive accuracy and generalization are essential. 
 
-
-`link` : <https://androidkt.com/wp-content/uploads/2021/07/Selection_103.png>
-
 The steps we're gonna take are : 
 -   Creating a control structure that defines how the training process: using the command `trainControl()`
 -   Creating a Random Forest Model: using the command `train()` 
