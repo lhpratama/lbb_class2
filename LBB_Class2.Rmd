@@ -1,0 +1,448 @@
+---
+title: "LBB_Class2"
+author: "Luthfi"
+date: "2023-11-01"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_float:
+      collapsed: no
+    number_sections: yes
+    df_print: paged
+---
+
+# Introduction : Dropout Prediction
+
+```{r}
+library(knitr)
+knitr::include_graphics("take-necessary-steps-for-college-graduation-main.jpg")
+```
+
+`Img Source` : <https://www.iowastudentloan.org/images/articles/college/take-necessary-steps-for-college-graduation-main.jpg>
+
+`link`: <https://www.kaggle.com/datasets/thedevastator/higher-education-predictors-of-student-retention/data>
+
+This dataset can be used to understand and predict student dropouts and academic outcomes. The data includes a variety of demographic, social-economic and academic performance factors related to the students enrolled in higher education institutions. The dataset provides valuable insights into the factors that affect student success and could be used to guide interventions and policies related to student retention.
+
+## Notes on Specific Variables
+
+Categorical Desc: <https://www.mdpi.com/2306-5729/7/11/146>
+
+-   `Marital.status` : The marital status of the student. (Categorical)
+-   `Application.order` : The order in which the student applied. (Numerical)
+-   `Course` : The course taken by the student. (Categorical)
+-   `Daytime.evening.attendance`: Whether the student attends classes during the day or in the evening. (Categorical)
+-   `Previous.qualification` : The qualification obtained by the student before enrolling in higher education. (Categorical)
+-   `Nacionality` : The nationality of the student. (Categorical)
+-   `Displaced` : Whether the student is a displaced person. (Categorical)
+-   `Educational.special.needs` : Whether the student has any special educational needs. (Categorical)
+-   `Debtor` : Whether the student is a debtor. (Categorical)
+-   `Tuition.fees.up.to.date` : Whether the student's tuition fees are up to date. (Categorical)
+-   `Gender` : The gender of the student. (Categorical)
+-   `Scholarship.holder` : Whether the student is a scholarship holder. (Categorical)
+-   `Age.at.enrollment` : The age of the student at the time of enrollment. (Numerical)
+-   `International` : Whether the student is an international student. (Categorical)
+-   `Target` : Target
+
+## Objective
+
+Target variable = `Target`
+
+Finding the most optimal model to predict the `Target` from dataset by using three types of model: **Naive Bayes**, **Decision Tree**, and **Random Forest**. 
+
+# Data Preparation
+
+The First step is inserting the csv file into R located in data_input and then installing the necessary plugins including `dplyr`, `lubridate`, `caret`, etc.
+
+```{r}
+# Read data csv
+do <- read.csv("dropouts.csv", stringsAsFactors = TRUE)
+
+# Load libraries for data manipulation and analysis
+library(dplyr)      # Used for data manipulation
+library(lubridate)  # Used for date and time manipulation (used by 'glimpse' function)
+library(caret)      # Used for data splitting and machine learning (used for 'prop.table' and 'upSample')
+library(inspectdf)  # Used for data exploration
+library(ggplot2)    # Used for data visualization
+library(MASS)       # Used for logistic regression (logistic model fitting)
+library(class)      # Used for k-nearest neighbor (KNN) classification
+library(e1071)      # Used for Naive Bayes
+library(partykit)   # Used for Decision Tree
+library(stringr)    # Used for removing uniques
+```
+
+Next, we will observe our data set which we exported from the *csv*.
+
+```{r}
+head(do)
+```
+
+We will also observe the `glimpse()` to check all the columns.
+
+```{r}
+glimpse(do)
+```
+
+Remove the `X` column
+```{r}
+do <- do[,-c(1)]
+```
+
+Unique value Description : 1 = Yes 0 = No
+
+```{r}
+# Convert selected columns to factors by position
+do <- do %>%
+  mutate_at(
+    vars(c(7:12, 14)),
+    as.factor
+  )
+```
+
+```{r}
+# Convert numbers into names
+do <- do %>%
+  mutate(Marital.status = as.factor(Marital.status)) %>%
+  mutate(Marital.status = case_when(
+    Marital.status == 1 ~ "Single",
+    Marital.status == 2 ~ "Married",
+    Marital.status == 3 ~ "Widower",
+    Marital.status == 4 ~ "Divorced",
+    Marital.status == 5 ~ "Facto union",
+    Marital.status == 6 ~ "Legally separated",
+    TRUE ~ Marital.status
+  ))
+```
+
+```{r}
+# Convert numbers into names
+do <- do %>%
+  rename(Nationality = Nacionality) %>%
+  mutate(Nationality = as.factor(Nationality)) %>%
+  mutate(
+    Nationality = case_when(
+      Nationality == 1 ~ "Portuguese",
+      Nationality == 2 ~ "German",
+      Nationality == 3 ~ "Spanish",
+      Nationality == 4 ~ "Italian",
+      Nationality == 5 ~ "Dutch",
+      Nationality == 6 ~ "English",
+      Nationality == 7 ~ "Lithuanian",
+      Nationality == 8 ~ "Angolan",
+      Nationality == 9 ~ "Cape Verdean",
+      Nationality == 10 ~ "Guinean",
+      Nationality == 11 ~ "Mozambican",
+      Nationality == 12 ~ "Santomean",
+      Nationality == 13 ~ "Turkish",
+      Nationality == 14 ~ "Brazilian",
+      Nationality == 15 ~ "Romanian",
+      Nationality == 16 ~ "Moldova (Republic of)",
+      Nationality == 17 ~ "Mexican",
+      Nationality == 18 ~ "Ukrainian",
+      Nationality == 19 ~ "Russian",
+      Nationality == 20 ~ "Cuban",
+      Nationality == 21 ~ "Colombian",
+      TRUE ~ Nationality
+    )
+  )
+```
+
+By following the categorical description, we will change uniques from Gender
+
+```{r}
+# Changing uniques from Gender
+do <- do %>%
+  mutate(
+    Gender = case_when(
+      Gender == 1 ~ "Male",
+      Gender == 0 ~ "Female",
+      TRUE ~ Gender
+    )
+  )
+```
+
+```{r}
+# Mutating char column into factor
+do <- do %>%
+  mutate_at(vars("Marital.status", "Gender" , "Nationality"), as.factor)
+```
+
+❓ Variabel target: `Target`
+
+Afterward, we will need to check if there are any rows with missing value or NA data
+
+```{r}
+# Checking NA Data
+length(complete.cases(do))
+```
+
+```{r}
+# Filtering out Enrolled value since we only needed Graduates and Dropouts
+do$Target <- str_trim(do$Target)
+do <- do[do$Target != "Enrolled", ] %>%
+  mutate (Target = as.factor(Target))
+```
+
+```{r}
+# Checking the balanced of target
+prop.table(table(do$Target))
+```
+
+# Data Exploration
+
+```{r}
+head(do)
+```
+
+Unique value Description : 1 = Yes 0 = No
+
+```{r}
+summary(do)
+```
+
+```{r}
+ggplot(do, aes(x=Course)) +
+  geom_histogram(binwidth = 1, fill = "grey", color = "white") +
+  labs(title = "Histogram of Number of Courses Taken ", subtitle= "distribution", x = "Number of Courses", y = "Frequency") + 
+  theme_minimal()
+```
+
+# Prediction
+
+Prediction will be made three times with three different models, **Naive Bayes**, **Decision Tree**, and **Random Forest**. This three-fold prediction strategy enables a comprehensive evaluation of the dataset, taking into account various modeling techniques and their respective strengths. This approach ultimately contributes to a well-rounded understanding of the data and its predictive potential.
+
+First step is by splitting the data set into two: **training** and **test**
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(501)
+
+# sampling
+split_sample <- sample(x = nrow(do), size = nrow(do)*0.75) 
+
+# splitting
+do_train <- do[split_sample,] 
+do_test <- do[-split_sample,] 
+```
+
+```{r}
+prop.table(table(do_train$Target))
+```
+
+```{r}
+# Downsampling the "Graduate" value
+
+do_train_down <- downSample(x = do_train[, names(do_train) != "Target"], 
+                            y = do_train$Target, 
+                            yname = "Target")
+```
+
+```{r}
+prop.table(table(do_train_down$Target))
+```
+
+```{r}
+do_test_wt <- do_test[,c(-15)]
+head(do_test_wt)
+```
+
+## Naive Bayes
+
+**Naive Bayes** is a simple and probabilistic machine learning algorithm that is particularly well-suited for classification tasks. It is based on Bayes' theorem and the assumption of conditional independence among features, which is often considered "naive" since it simplifies the modeling process. Naive Bayes calculates the probability of an instance belonging to a particular class based on the likelihood of its features given that class.
+
+The steps we're gonna take are : 
+-   Creating a Naive Bayes Model: using the command `naiveBayes()` 
+-   Predicting using the Naive Bayes Model: using the command `predict()` 
+-   Generate the Confusion Matrix: using the command `confusionMatrix()`
+
+```{r}
+# Creating Model Naive Bayes
+model_nb<- naiveBayes(Target ~ ., data = do_test)  
+```
+
+```{r}
+# Creating Predict Naive Bayes
+pred_nb <- predict(model_nb, newdata = do_test_wt) 
+```
+
+```{r}
+# Generate Confusion Matrix
+confusionMatrix(table(pred_nb, do_test$Target)) 
+```
+**Note :**
+
+-   TP : 187
+-   FP : 95
+-   FN : 146
+-   TN : 480
+
+Since we want to minimize the rate of FN (False Negative, in this case predicted to graduate but turns out to be a dropout), we will use the `Sensitivity` from the table.
+
+**Insight :**
+
+The **Naive Bayes** model has achieved sensitivity of only **56.1%**. It correctly predicted 187 dropouts and 480 graduates, while 146 individuals predicted to graduate ended up as dropouts, and 95 individuals predicted to be dropouts actually graduated.
+
+## Decision Tree
+
+**Decision Tree** is a fundamental machine learning algorithm used for both classification and regression tasks. It creates a tree-like structure where each internal node represents a feature or attribute, and each leaf node represents a class label or a numeric value. The tree is constructed through a process of recursively splitting the data based on feature values to maximize information gain (for classification) or reduce impurity (for regression). Decision Trees are interpretable and intuitive models, making them valuable for understanding decision-making processes.
+
+The steps we're gonna take are : 
+-   Creating a Decision Tree Model: using the command `ctree()` 
+-   Plotting the model to visualize the model: using the command `plot()`
+-   Predicting by creating two types of model, test and train: using the command `predict()` 
+-   Generate two types of  Confusion Matrix: using the command `confusionMatrix()`
+
+```{r}
+# Creating model
+model_dt <- ctree(Target ~ ., do_train_down,
+                               control = ctree_control(mincriterion = 0.5,  #  The minimum criterion for splitting nodes in the tree
+                                                       minsplit = 0.5, # The minimum number of data points required in a node to perform a split
+                                                       minbucket = 90)) # The minimum number of data points required in a terminal (leaf) node
+```
+
+```{r echo = FALSE, fig.width= 20}
+# Generate plot
+plot(model_dt, type = "simple")
+```
+-   [1] : **Root Node**
+-   [3], [4], [5], [6], [10], [12], [15] : **Internal Nodes**
+-   [2], [7], [8], [9], [11], [13], [14], [16], [17] : **Leaf Nodes**
+
+```{r}
+# Formula and Fitted Party
+model_dt
+```
+
+```{r}
+# Predicting in Train
+
+# Predicting data train
+model_dt_train <- predict(model_dt, do_train_down)
+
+
+# confusion matrix data train
+confusionMatrix(data = model_dt_train, 
+                reference = do_train_down$Target, 
+                positive = "Graduate")
+```
+**Note :**
+
+-   TP : 747 
+-   FP : 217
+-   FN : 341
+-   TN : 871
+
+Since we want to minimize the rate of FN (False Negative, in this case predicted to graduate but turns out to be a dropout), we will use the `Sensitivity` from the table.
+
+**Insight :**
+
+The train model has achieved an accuracy of **80%**. It correctly predicted 747 dropouts and 871 graduates, while 341 individuals predicted to graduate ended up as dropouts, and 217 individuals predicted to be dropouts actually graduated.
+
+```{r}
+#Predicting in Test
+
+# Predicting data test
+model_dt_test <- predict(model_dt, do_test_wt)
+
+# Confusion matrix data train
+confusionMatrix(data = model_dt_test,
+               reference = do_test$Target,
+              positive = "Dropout")
+```
+**Note :**
+
+-   TP : 204
+-   FP : 133
+-   FN : 129
+-   TN : 442
+
+Since we want to minimize the rate of FN (False Negative, in this case predicted to graduate but turns out to be a dropout), we will use the `Sensitivity` from the table.
+
+**Insight :**
+
+The  test model however, only  achieved sensitivity of **61.2%**. It correctly predicted 204 dropouts and 133 graduates, while 129 individuals predicted to graduate ended up as dropouts, and 133 individuals predicted to be dropouts actually graduated.
+
+## Random Forest
+
+**Random Forest** is a powerful ensemble learning algorithm closely related to Decision Trees. While Decision Trees are individual models that make predictions based on a tree-like structure of binary decisions, Random Forest extends this concept by creating a collection of Decision Trees. Each tree in the Random Forest is built from a random subset of the data and a random subset of the features. This randomness in data selection and feature choice makes the trees diverse. Then, when making predictions, Random Forest aggregates the outputs of these individual trees, such as majority voting for classification or averaging for regression, resulting in a more robust and accurate prediction compared to a single Decision Tree. This ensemble approach helps Random Forest overcome the tendency of Decision Trees to overfit to the training data and makes it a popular choice for machine learning tasks where high predictive accuracy and generalization are essential. 
+
+
+`link` : <https://androidkt.com/wp-content/uploads/2021/07/Selection_103.png>
+
+The steps we're gonna take are : 
+-   Creating a control structure that defines how the training process: using the command `trainControl()`
+-   Creating a Random Forest Model: using the command `train()` 
+-   Plotting the Random Forest Model: using the command `plot()` 
+-   Predicting the Random Forest Model : using the command `predict()`
+-   Generate the Confusion Matrix: using the command `confusionMatrix()`
+
+```{r}
+set.seed(501)
+rf_trControl <- trainControl(method="repeatedcv", 
+                             number=5, # Number of folds
+                             repeats=5) # Frequency of repeats
+```
+
+```{r}
+model_rf <- train(Target~ ., data=do_train_down, method="rf", trControl = rf_trControl)
+```
+
+```{r}
+varImp(model_rf)
+```
+
+Using the `varImp()` command with the model_rf, it is evident that the most influential predictor of the Target variable is the Age at enrollment,' followed by 'course,' and 'whether the tuition fees are up to date.
+
+```{r}
+plot(model_rf$finalModel)
+legend("topright", colnames(model_rf$finalModel$err.rate),
+       col=1:6,cex=0.7,fill=1:6)
+
+```
+
+```{r}
+# Predicting model
+pred_rf <- predict(model_rf, newdata = do_test_wt) 
+```
+
+```{r}
+# Generating Confusion Matrix
+confusionMatrix(table(pred_rf, do_test$Target))
+```
+**Note :**
+
+-   TP : 237
+-   FP : 132
+-   FN : 96
+-   TN : 443
+
+Since we want to minimize the rate of FN (False Negative, in this case predicted to graduate but turns out to be a dropout), we will use the `Sensitivity` from the table.
+
+**Insight :**
+
+The  model created by using **Random Forest** has achieved a sensitivity of **71.1%**. It correctly predicted 237 dropouts and 443 graduates, while 96 individuals predicted to graduate ended up as dropouts, and 132 individuals predicted to be dropouts actually graduated.
+
+
+# Conclusion
+
+In the ranking of prediction models based on **Sensitivity**, the top-performing model on the **training set** is the **Decision Tree** with a sensitivity of **80%**. Following closely, the **Random Forest** model exhibits a sensitivity of **71.1%**, securing the second position. On the **test set**, the **Decision Tree** model slightly decreases in sensitivity to **61.2%**, securing the third position. The **Naive Bayes** model concludes the ranking with a sensitivity of **56.1%**. This order suggests that the Decision Tree model excels in sensitivity on the training set, while the Random Forest model maintains a strong performance, and the Naive Bayes model lags behind in this evaluation criterion.
+
+
+Ranking the prediction Model based on **Sensitivity** : 
+
+-   Decision Tree - Train  : 80%
+-   Random Forest : 71.1%
+-   Decision Tree - Test  : 61.2%
+-   Naive Bayes  : 56.1%
+
+
+
+
+
+
+
+
